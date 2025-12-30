@@ -1,0 +1,4 @@
+Project 'SimpleApp' has the following vulnerable packages:
+   [net5.0]: 
+   Top-level Package      Requested   Resolved   Severity   Advisory URL                                     
+   > Newtonsoft.Json      12.0.1      12.0.1     High       https://github.com/advisories/GHSA-5crp-9r3c-p9vr

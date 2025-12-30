@@ -1,0 +1,27 @@
+{
+    "auditReportVersion": 2,
+    "vulnerabilities": {
+        "foo-pkg": {
+            "name": "foo-pkg",
+            "severity": "high",
+            "isDirect": false,
+            "via": [
+                "bar-pkg"
+            ],
+            "fixAvailable": false
+        },
+        "bar-pkg": {
+            "name": "bar-pkg",
+            "severity": "high",
+            "via": [
+                {
+                    "source": 9999,
+                    "title": "Remote Code Execution",
+                    "url": "https://example.com/rce",
+                    "severity": "high"
+                }
+            ],
+            "fixAvailable": false
+        }
+    }
+}

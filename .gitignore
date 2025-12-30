@@ -1,0 +1,31 @@
+# Binaries
+/depscanity
+/depscanity-debug
+
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Output directories
+depscanity_out/
+dist/
+
+# Editor/IDE specific
+.vscode/
+.idea/
+.DS_Store
+
+# OS specific
+Thumbs.db
+
+# Go modules
+vendor/
+
+# Security
+.env
+
+# Logs
+*.log

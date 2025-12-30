@@ -1,0 +1,46 @@
+{
+    "SchemaVersion": 2,
+    "ArtifactName": "alpine:3.14",
+    "ArtifactType": "container_image",
+    "Results": [
+        {
+            "Target": "alpine:3.14 (alpine 3.14.2)",
+            "Class": "os-pkgs",
+            "Type": "alpine",
+            "Vulnerabilities": [
+                {
+                    "VulnerabilityID": "CVE-2021-36159",
+                    "PkgName": "libfetch",
+                    "PkgPath": "",
+                    "InstalledVersion": "2.33.1",
+                    "FixedVersion": "2.33.2",
+                    "Layer": {
+                        "Digest": "sha256:..."
+                    },
+                    "SeveritySource": "nvd",
+                    "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2021-36159",
+                    "Title": "libfetch: out-of-bounds read",
+                    "Description": "An issue was discovered in libfetch...",
+                    "Severity": "CRITICAL",
+                    "CweIDs": [
+                        "CWE-125"
+                    ],
+                    "References": [
+                        "https://nvd.nist.gov/vuln/detail/CVE-2021-36159"
+                    ]
+                },
+                {
+                    "VulnerabilityID": "CVE-2021-9999",
+                    "PkgName": "fake-pkg",
+                    "InstalledVersion": "1.0",
+                    "FixedVersion": "1.1",
+                    "Severity": "MEDIUM",
+                    "Title": "Fake vulnerability",
+                    "References": [
+                        "http://example.com"
+                    ]
+                }
+            ]
+        }
+    ]
+}

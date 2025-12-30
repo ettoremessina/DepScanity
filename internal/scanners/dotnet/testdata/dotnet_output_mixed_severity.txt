@@ -1,0 +1,8 @@
+Project 'MixedApp' has the following vulnerable packages:
+   [netcoreapp3.1]: 
+   Top-level Package      Requested   Resolved   Severity   Advisory URL
+   > Lib.Bad              1.0.0       1.0.0      Critical   https://example.com/critical
+   > Lib.Meh              2.0.0       2.0.0      Moderate   https://example.com/moderate
+
+Transitive Package      Resolved   Severity   Advisory URL
+   > Transitive.Lib        3.0.0      Low
