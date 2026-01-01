@@ -2,9 +2,14 @@
 
 **DepScanity** is a lightweight, CLI-first **Software Composition Analysis (SCA)** orchestrator written in Go. It turns dependency security into a deterministic, CI-friendly process by auto-detecting technology stacks and running native scanners under a unified interface.
 
-This program is written using Gemini3 code agent using Antigravity IDE.
-
 > "DepScanity turns dependency chaos into a single, deterministic truth."
+
+---
+
+## 🤖 AI Attribution
+This project was written using **Gemini3** using **Antigravity**.
+
+---
 
 ## 🚀 Features
 
