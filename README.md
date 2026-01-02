@@ -7,7 +7,7 @@
 ---
 
 ## 🤖 AI Attribution
-This project was written using **Gemini3** using **Antigravity**.
+This project was written using **Gemini 3** inside the **Antigravity** IDE.
 
 ---
 
