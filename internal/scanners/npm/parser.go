@@ -3,6 +3,8 @@ package npm
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"strings"
 
 	"depscanity/internal/model"
 )
@@ -38,6 +40,7 @@ type ViaDetail struct {
 // "via": [{"source": 1084, "name": "minimist", "dependency": "minimist", "title": "Prototype Pollution", "url": "https://...", "severity": "low", "range": "<0.2.1"}]
 // Or "via": ["some-package"]
 
+// ParseNpmAudit parses json output from npm audit and enhances it with installed versions from package-lock.json
 func ParseNpmAudit(jsonOutput string, lockPath string) ([]model.Finding, error) {
 	// Try parsing as v7+
 	var report AuditReportV7
@@ -45,22 +48,20 @@ func ParseNpmAudit(jsonOutput string, lockPath string) ([]model.Finding, error) 
 		return nil, fmt.Errorf("failed to unmarshal npm audit json: %w", err)
 	}
 
+	// Parse lockfile for versions
+	installedMap, err := parsePackageLock(lockPath)
+	if err != nil {
+		fmt.Printf("Warning: failed to parse package-lock.json: %v\n", err)
+	}
+
 	var findings []model.Finding
 
 	for pkgName, vuln := range report.Vulnerabilities {
-		// Determine installed version if possible.
-		// `npm audit` v7 doesn't explicitly list "installed version" in the top-level vuln object easily,
-		// it often implies it via `nodes` or we have to guess.
-		// However, typical usage is that the vuln object applies to the installed instance.
-		// We will set InstalledVersion to "?" if not found, or try to parse from `range` if it helps? No, range is vulnerable range.
-
-		// Wait, `nodes` contains ["node_modules/package"].
-		// Ideally we would look up the version in package-lock, but we don't satisfy that requirement here.
-		// Use "Unknown" for installed version if not readily available in audit json.
-		// Actually, sometimes "via" contains info.
-
-		// Let's stick to simple parsing.
+		// Determine installed version from lockfile map
 		installedVer := "Unknown"
+		if v, ok := installedMap[pkgName]; ok {
+			installedVer = v
+		}
 
 		sev, _ := model.ParseSeverity(vuln.Severity)
 
@@ -165,6 +166,72 @@ func ParseNpmAudit(jsonOutput string, lockPath string) ([]model.Finding, error) 
 	}
 
 	return findings, nil
+}
+
+// parsePackageLock parses package-lock.json to map installed versions
+func parsePackageLock(lockPath string) (map[string]string, error) {
+	result := make(map[string]string)
+
+	content, err := os.ReadFile(lockPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Partial struct
+	type PackageLock struct {
+		LockfileVersion int `json:"lockfileVersion"`
+		// V1
+		Dependencies map[string]struct {
+			Version string `json:"version"`
+		} `json:"dependencies"`
+		// V2/V3
+		Packages map[string]struct {
+			Version string `json:"version"`
+		} `json:"packages"`
+	}
+
+	var lock PackageLock
+	if err := json.Unmarshal(content, &lock); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal package-lock.json: %w", err)
+	}
+
+	// Strategy:
+	// If V2/3: iterate "packages". keys are "node_modules/foo" or "node_modules/bar/node_modules/foo".
+	// We want the flatten "foo" -> version.
+	// Since npm audit reports flattened dependencies usually (top-level or hoisted),
+	// we care about widely used versions.
+	// Prioritize "node_modules/foo" (top level).
+
+	if lock.Packages != nil {
+		for path, pkg := range lock.Packages {
+			if path == "" {
+				continue
+			}
+
+			// extract package name from path
+			// path usually: "node_modules/axios" or "node_modules/foo/node_modules/bar"
+			parts := strings.Split(path, "node_modules/")
+			if len(parts) > 1 {
+				pkgName := parts[len(parts)-1]
+				// if duplicate, top-level (shorter path) usually preferred?
+				// or just map it.
+				// For now simple map. Overwrites are possible if multiple versions installed.
+				// Ideally we'd match exact path, but audit gives pkg name.
+				if _, exists := result[pkgName]; !exists {
+					result[pkgName] = pkg.Version
+				}
+			}
+		}
+	}
+
+	// Fallback/V1: dependencies
+	if lock.Dependencies != nil {
+		for pkgName, obj := range lock.Dependencies {
+			result[pkgName] = obj.Version
+		}
+	}
+
+	return result, nil
 }
 
 func parseFixAvailable(raw any) *string {

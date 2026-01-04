@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	depExec "depscanity/internal/exec"
 	"flag"
@@ -233,13 +234,47 @@ func main() {
 				slns = append(slns, f)
 			}
 		}
+		// Fallback: If no SLNs, use project files (csproj) if available
 		if len(slns) > 0 {
-			finalTargets = slns
-			fmt.Printf("  Targeting %d solutions.\n", len(finalTargets))
+			// Scan solutions
+			finalTargets = append(finalTargets, slns...)
+
+			// Detect orphans
+			includedProjects, err := getProjectsInSolutions(slns)
+			if err != nil {
+				// Warn but proceed with just solutions?
+				fmt.Printf("Warning: Failed to parse solutions for orphan detection: %v\n", err)
+			} else {
+				// Find orphans
+				orphanCount := 0
+				for _, projPath := range detRes.Dotnet {
+					// Skip if it's a solution
+					if strings.HasSuffix(projPath, ".sln") {
+						continue
+					}
+					// Check if included
+					if !includedProjects[projPath] {
+						finalTargets = append(finalTargets, projPath)
+						orphanCount++
+					}
+				}
+				if orphanCount > 0 {
+					fmt.Printf("  Found %d orphan projects (not in solution).\n", orphanCount)
+				}
+			}
+
+			fmt.Printf("  Targeting %d items (%d solutions + orphans).\n", len(finalTargets), len(slns))
+		} else if len(detRes.Dotnet) > 0 {
+			// If no SLNs but we have other dotnet files (which are csproj per detect logic)
+			// we target them directly.
+			finalTargets = detRes.Dotnet
+			fmt.Printf("  Targeting %d projects (no solution found).\n", len(finalTargets))
 		} else {
 			// Fallback to root scan (Scanner handles empty targets list by scanning root)
+			// This path is technically redundant if detRes.Dotnet was empty (shouldScanDotnet logic handles it),
+			// but kep for safety.
 			finalTargets = []string{}
-			fmt.Printf("  No solutions found, scanning repository root.\n")
+			fmt.Printf("  No solutions or projects found, scanning repository root.\n")
 		}
 
 		detOverride := detRes
@@ -408,4 +443,49 @@ func printUsage() {
 	fmt.Println("  --no-container Disable container scanning")
 	fmt.Println("  --image        Scan specific docker image")
 	fmt.Println("  --docker-build Build docker image before scanning")
+}
+
+// getProjectsInSolutions parses .sln files to find included projects.
+// Returns a map of absolute paths to projects that are PART of a solution.
+func getProjectsInSolutions(slnPaths []string) (map[string]bool, error) {
+	included := make(map[string]bool)
+
+	for _, slnPath := range slnPaths {
+		file, err := os.Open(slnPath)
+		if err != nil {
+			return nil, err
+		}
+		defer file.Close()
+
+		baseDir := filepath.Dir(slnPath)
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			// Format: Project("{GUID}") = "Name", "Path\To\Project.csproj", "{GUID}"
+			if strings.HasPrefix(line, "Project(") {
+				parts := strings.Split(line, "=")
+				if len(parts) >= 2 {
+					// valid project line
+					// split by comma to get the path (2nd quoted string)
+					segments := strings.Split(parts[1], ",")
+					if len(segments) >= 3 {
+						// The path is in the second segment, quoted.
+						rawPath := strings.TrimSpace(segments[1])
+						rawPath = strings.Trim(rawPath, "\"")
+
+						// Convert Windows path separators to OS specific if needed, but standard library handles / usually
+						// However SLN uses backslashes
+						cleanPath := strings.ReplaceAll(rawPath, "\\", string(os.PathSeparator))
+
+						absPath := filepath.Join(baseDir, cleanPath)
+
+						// Normalize path
+						absPath, _ = filepath.Abs(absPath)
+						included[absPath] = true
+					}
+				}
+			}
+		}
+	}
+	return included, nil
 }
